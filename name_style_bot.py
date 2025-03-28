@@ -240,23 +240,37 @@ async def main() -> None:
         # Add error handler
         application.add_error_handler(error_handler)
 
-        # Start the bot
-        logger.info("Starting bot...")
+        # Initialize the application
+        await application.initialize()
         
         # Create and start web app
         app = await web_app()
-        port = int(os.environ.get("PORT", "8080"))
+        port = int(os.environ.get("PORT", "10000"))
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", port)
-        await site.start()
-        logger.info(f"Web app started on port {port}")
-
-        # Run the bot and web app together
-        await application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
-
+        
+        # Start both the web app and bot
+        async with site:
+            logger.info(f"Web app started on port {port}")
+            logger.info("Starting bot...")
+            await application.start()
+            
+            # Run forever
+            await application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+            
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
+        if 'application' in locals():
+            await application.shutdown()
+    finally:
+        if 'runner' in locals():
+            await runner.cleanup()
 
 if __name__ == '__main__':
-    asyncio.run(main()) 
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Fatal error: {e}") 
