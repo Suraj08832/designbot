@@ -4,6 +4,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from dotenv import load_dotenv
 from name_fonts import style_name, NORMAL_FONTS, FANCY_FONTS, STYLE_MAPS
+import asyncio
+from aiohttp import web
 
 # Load environment variables
 load_dotenv()
@@ -203,8 +205,20 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Error in button handler: {e}")
         await query.message.reply_text("Sorry, something went wrong. Please try again.")
 
-def main() -> None:
-    """Start the bot."""
+async def web_app():
+    """Simple web app to keep Render happy"""
+    app = web.Application()
+    routes = web.RouteTableDef()
+
+    @routes.get('/')
+    async def hello(request):
+        return web.Response(text="Bot is running!")
+
+    app.add_routes(routes)
+    return app
+
+async def main() -> None:
+    """Start the bot and web server."""
     try:
         # Get bot token from environment variable
         token = os.getenv("BOT_TOKEN")
@@ -228,9 +242,21 @@ def main() -> None:
 
         # Start the bot
         logger.info("Starting bot...")
-        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+        
+        # Create and start web app
+        app = await web_app()
+        port = int(os.environ.get("PORT", "8080"))
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "0.0.0.0", port)
+        await site.start()
+        logger.info(f"Web app started on port {port}")
+
+        # Run the bot and web app together
+        await application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
 
 if __name__ == '__main__':
-    main() 
+    asyncio.run(main()) 
