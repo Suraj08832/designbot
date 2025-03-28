@@ -79,8 +79,10 @@ async def show_style_options(update: Update, context: ContextTypes.DEFAULT_TYPE,
         if len(message_text) > 1:
             name = " ".join(message_text[1:])
             user_states[update.effective_user.id] = name
+            logger.info(f"Name set from command: {name}")
         else:
             name = user_states.get(update.effective_user.id)
+            logger.info(f"Name retrieved from state: {name}")
         
         if not name:
             await update.message.reply_text(
@@ -90,28 +92,54 @@ async def show_style_options(update: Update, context: ContextTypes.DEFAULT_TYPE,
             return
 
         # Show style examples
-        examples_text = "Choose a style number for your name:\n\n"
+        examples_text = f"Choose a style number for '{name}':\n\n"
+        styles_dict = None
+        
         if style_type == "text":
-            styles = STYLE_MAPS
-            for i, (style_key, _) in enumerate(styles.items(), 1):
-                styled_name = style_name(name, "text", style_key)
-                examples_text += f"{i}. {styled_name}\n"
+            styles_dict = STYLE_MAPS
         elif style_type == "normal":
-            styles = NORMAL_FONTS
-            for i, (style_name, pattern) in enumerate(styles.items(), 1):
-                styled_name = pattern.replace("NAME", name)
-                examples_text += f"{i}. {styled_name}\n"
+            styles_dict = NORMAL_FONTS
         else:
-            styles = FANCY_FONTS
-            for i, (style_name, pattern) in enumerate(styles.items(), 1):
-                styled_name = pattern.replace("NAME", name)
+            styles_dict = FANCY_FONTS
+            
+        if not styles_dict:
+            logger.error(f"No styles found for type: {style_type}")
+            await update.message.reply_text("Sorry, no styles available right now. Please try again later.")
+            return
+            
+        keyboard = []
+        row = []
+        
+        for i, style_key in enumerate(styles_dict.keys(), 1):
+            try:
+                styled_name = style_name(name, style_type, style_key)
                 examples_text += f"{i}. {styled_name}\n"
-
-        keyboard = create_style_keyboard(style_type)
-        await update.message.reply_text(examples_text, reply_markup=keyboard)
+                
+                callback_data = f"{style_type}|{style_key}"
+                row.append(InlineKeyboardButton(str(i), callback_data=callback_data))
+                
+                if len(row) == 3:  # 3 buttons per row
+                    keyboard.append(row)
+                    row = []
+            except Exception as e:
+                logger.error(f"Error creating style example {i}: {e}")
+                continue
+                
+        if row:  # Add any remaining buttons
+            keyboard.append(row)
+            
+        if not keyboard:
+            await update.message.reply_text("Sorry, couldn't create style options. Please try again.")
+            return
+            
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(examples_text, reply_markup=reply_markup)
+        
     except Exception as e:
         logger.error(f"Error in show_style_options: {e}")
-        await update.message.reply_text("Sorry, something went wrong. Please try sending your name again.")
+        await update.message.reply_text(
+            "Sorry, something went wrong. Please try again or send your name first."
+        )
 
 async def text_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /text command."""
@@ -158,19 +186,18 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await query.message.reply_text("Please send me your name first!")
             return
         
-        try:
-            styled_name = style_name(name, style_type, style_key)
-            if styled_name:
-                await query.message.reply_text(
-                    f"Here's your styled name:\n\n{styled_name}\n\n"
-                    f"Use /{style_type} command to try more styles!"
-                )
-            else:
-                raise ValueError("Could not style the name")
-        except Exception as style_error:
-            logger.error(f"Error applying style: {style_error}")
+        logger.info(f"Styling name: {name} with type: {style_type} and style: {style_key}")
+        styled_name = style_name(name, style_type, style_key)
+        
+        if styled_name and styled_name != name:
             await query.message.reply_text(
-                "Sorry, couldn't apply this style. Please try another one or send your name again."
+                f"Here's your styled name:\n\n{styled_name}\n\n"
+                f"Use /{style_type} command to try more styles!"
+            )
+        else:
+            logger.error(f"Style failed for {name} with {style_type}|{style_key}")
+            await query.message.reply_text(
+                "Sorry, couldn't apply this style. Please try another one."
             )
     except Exception as e:
         logger.error(f"Error in button handler: {e}")

@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Font styles specifically for names
 NORMAL_FONTS = {
     "Simple Star": "★ NAME ★",
@@ -307,7 +311,10 @@ def transform_text(text, style_map):
         if char.isspace():
             result += " "
         elif char.isalpha():
-            result += style_map.get(char, char)
+            if char in style_map:
+                result += style_map[char]
+            else:
+                result += char
         else:
             result += char
     return result
@@ -320,15 +327,19 @@ def style_name(name, style_type, style_name_str):
             
         if style_type == "text":
             if style_name_str not in STYLE_MAPS:
+                logger.error(f"Style {style_name_str} not found in STYLE_MAPS")
                 return name
-            style_map = STYLE_MAPS[style_name_str]
-            return transform_text(name, style_map)
+            return transform_text(name, STYLE_MAPS[style_name_str])
         elif style_type == "normal":
-            pattern = NORMAL_FONTS.get(style_name_str, "NAME")
-            return pattern.replace("NAME", name)
+            if style_name_str not in NORMAL_FONTS:
+                logger.error(f"Style {style_name_str} not found in NORMAL_FONTS")
+                return name
+            return NORMAL_FONTS[style_name_str].replace("NAME", name)
         else:  # fancy
-            pattern = FANCY_FONTS.get(style_name_str, "NAME")
-            return pattern.replace("NAME", name)
+            if style_name_str not in FANCY_FONTS:
+                logger.error(f"Style {style_name_str} not found in FANCY_FONTS")
+                return name
+            return FANCY_FONTS[style_name_str].replace("NAME", name)
     except Exception as e:
-        print(f"Error styling name: {e}")
+        logger.error(f"Error styling name: {e}")
         return name 
