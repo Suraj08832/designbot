@@ -303,21 +303,32 @@ STYLE_MAPS = {
 def transform_text(text, style_map):
     """Transform text using the given style map."""
     result = ""
-    for char in text.upper():
-        if char in style_map:
-            result += style_map[char]
+    for char in str(text).upper():
+        if char.isspace():
+            result += " "
+        elif char.isalpha():
+            result += style_map.get(char, char)
         else:
             result += char
     return result
 
 def style_name(name, style_type, style_name_str):
     """Style a name using the specified style type and name."""
-    if style_type == "text":
-        style_map = STYLE_MAPS.get(style_name_str, {})
-        return transform_text(name, style_map)
-    elif style_type == "normal":
-        pattern = NORMAL_FONTS.get(style_name_str, "NAME")
-        return pattern.replace("NAME", name)
-    else:  # fancy
-        pattern = FANCY_FONTS.get(style_name_str, "NAME")
-        return pattern.replace("NAME", name) 
+    try:
+        if not name:
+            return "Please provide a name to style"
+            
+        if style_type == "text":
+            if style_name_str not in STYLE_MAPS:
+                return name
+            style_map = STYLE_MAPS[style_name_str]
+            return transform_text(name, style_map)
+        elif style_type == "normal":
+            pattern = NORMAL_FONTS.get(style_name_str, "NAME")
+            return pattern.replace("NAME", name)
+        else:  # fancy
+            pattern = FANCY_FONTS.get(style_name_str, "NAME")
+            return pattern.replace("NAME", name)
+    except Exception as e:
+        print(f"Error styling name: {e}")
+        return name 

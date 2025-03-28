@@ -93,8 +93,8 @@ async def show_style_options(update: Update, context: ContextTypes.DEFAULT_TYPE,
         examples_text = "Choose a style number for your name:\n\n"
         if style_type == "text":
             styles = STYLE_MAPS
-            for i, (style_key, style_func) in enumerate(styles.items(), 1):
-                styled_name = style_func(name)  # Call the function directly
+            for i, (style_key, _) in enumerate(styles.items(), 1):
+                styled_name = style_name(name, "text", style_key)
                 examples_text += f"{i}. {styled_name}\n"
         elif style_type == "normal":
             styles = NORMAL_FONTS
@@ -159,29 +159,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
         
         try:
-            if style_type == "text":
-                style_func = STYLE_MAPS.get(style_key)
-                if style_func:
-                    styled_name = style_func(name)  # Call the function directly
-                else:
-                    raise ValueError(f"Style {style_key} not found")
-            elif style_type == "normal":
-                pattern = NORMAL_FONTS.get(style_key)
-                if pattern:
-                    styled_name = pattern.replace("NAME", name)
-                else:
-                    raise ValueError(f"Style {style_key} not found")
-            else:  # fancy
-                pattern = FANCY_FONTS.get(style_key)
-                if pattern:
-                    styled_name = pattern.replace("NAME", name)
-                else:
-                    raise ValueError(f"Style {style_key} not found")
-                
-            await query.message.reply_text(
-                f"Here's your styled name:\n\n{styled_name}\n\n"
-                f"Use /{style_type} command to try more styles!"
-            )
+            styled_name = style_name(name, style_type, style_key)
+            if styled_name:
+                await query.message.reply_text(
+                    f"Here's your styled name:\n\n{styled_name}\n\n"
+                    f"Use /{style_type} command to try more styles!"
+                )
+            else:
+                raise ValueError("Could not style the name")
         except Exception as style_error:
             logger.error(f"Error applying style: {style_error}")
             await query.message.reply_text(
