@@ -5,7 +5,6 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 from dotenv import load_dotenv
 from name_fonts import style_name, NORMAL_FONTS, FANCY_FONTS, STYLE_MAPS
 import asyncio
-from aiohttp import web
 
 # Load environment variables
 load_dotenv()
@@ -47,31 +46,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Error in start command: {e}")
         await update.message.reply_text("Sorry, something went wrong. Please try again.")
-
-def create_style_keyboard(style_type: str) -> InlineKeyboardMarkup:
-    """Create keyboard with style options."""
-    keyboard = []
-    row = []
-    
-    if style_type == "text":
-        styles = STYLE_MAPS
-    elif style_type == "normal":
-        styles = NORMAL_FONTS
-    else:
-        styles = FANCY_FONTS
-    
-    for i, style_name in enumerate(styles.keys(), 1):
-        callback_data = f"{style_type}|{style_name}"
-        row.append(InlineKeyboardButton(str(i), callback_data=callback_data))
-        
-        if len(row) == 3:  # 3 buttons per row
-            keyboard.append(row)
-            row = []
-    
-    if row:  # Add any remaining buttons
-        keyboard.append(row)
-    
-    return InlineKeyboardMarkup(keyboard)
 
 async def show_style_options(update: Update, context: ContextTypes.DEFAULT_TYPE, style_type: str) -> None:
     """Show style options for the given type."""
@@ -205,22 +179,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Error in button handler: {e}")
         await query.message.reply_text("Sorry, something went wrong. Please try again.")
 
-async def web_app():
-    """Simple web app to keep Render happy"""
-    app = web.Application()
-    routes = web.RouteTableDef()
-
-    @routes.get('/')
-    async def hello(request):
-        return web.Response(text="Bot is running!")
-
-    app.add_routes(routes)
-    return app
-
 async def main() -> None:
-    """Start the bot and web server."""
-    application = None
-    runner = None
+    """Start the bot."""
     try:
         # Get bot token from environment variable
         token = os.getenv("BOT_TOKEN")
@@ -242,47 +202,21 @@ async def main() -> None:
         # Add error handler
         application.add_error_handler(error_handler)
 
-        # Create and start web app
-        app = await web_app()
-        port = int(os.environ.get("PORT", "10000"))
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, "0.0.0.0", port)
-        await site.start()
-        
-        logger.info(f"Web app started on port {port}")
-        logger.info("Starting bot...")
-        
         # Start the bot
+        logger.info("Starting bot...")
         await application.initialize()
         await application.start()
-        
-        # Run the bot until stopped
         await application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
             
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
-        if application:
-            try:
-                await application.stop()
-            except Exception as stop_error:
-                logger.error(f"Error stopping application: {stop_error}")
-    finally:
-        # Cleanup
-        if runner:
-            try:
-                await runner.cleanup()
-            except Exception as cleanup_error:
-                logger.error(f"Error cleaning up runner: {cleanup_error}")
+        if 'application' in locals():
+            await application.stop()
 
-def run_bot():
-    """Run the bot with proper event loop handling."""
+if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
-
-if __name__ == '__main__':
-    run_bot() 
+        logger.error(f"Fatal error: {e}") 
