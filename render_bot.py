@@ -243,8 +243,8 @@ async def main():
     await app.bot.set_webhook(url=webhook_url)
     logger.info(f"Webhook set to: {webhook_url}")
 
-    # Start the bot
-    logger.info("Starting bot...")
+    # Start the bot without polling
+    logger.info("Starting bot with webhooks...")
     await app.initialize()
     await app.start()
 
