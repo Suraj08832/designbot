@@ -286,8 +286,9 @@ async def main():
         await site.start()
         logger.info(f"Web server started on port {PORT}")
 
-        # Keep the bot running
-        await app.run_polling(drop_pending_updates=True)
+        # Keep the bot running without polling
+        while True:
+            await asyncio.sleep(1)
     else:
         # Use polling for local development
         logger.info("Running in polling mode (local development)")
