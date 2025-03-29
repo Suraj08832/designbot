@@ -25,6 +25,9 @@ user_states = {}
 # Get port from environment variable or use default
 PORT = int(os.getenv("PORT", "8080"))
 
+# Check if we're running on Render
+IS_RENDER = os.getenv("RENDER_SERVICE_NAME") is not None
+
 def is_already_running():
     """Check if another instance of the bot is already running."""
     lock_file = os.path.join(tempfile.gettempdir(), 'name_style_bot.lock')
@@ -236,38 +239,33 @@ async def webhook_handler(request):
 
 async def main():
     """Start the bot."""
-    # Check if another instance is running
-    if is_already_running():
-        logger.error("Another instance of the bot is already running!")
-        sys.exit(1)
+    # Get bot token from environment variable
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        logger.error("No bot token found in environment variables!")
+        return
 
-    # Create lock file
-    if not create_lock_file():
-        logger.error("Failed to create lock file!")
-        sys.exit(1)
+    # Create application
+    app = Application.builder().token(token).build()
 
-    try:
-        # Get bot token from environment variable
-        token = os.getenv("BOT_TOKEN")
-        if not token:
-            logger.error("No bot token found in environment variables!")
-            return
+    # Add handlers
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("text", text_command))
+    app.add_handler(CommandHandler("fancy", fancy_command))
+    app.add_handler(CommandHandler("font", font_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    app.add_handler(CallbackQueryHandler(button))
+    
+    # Add error handler
+    app.add_error_handler(error_handler)
 
-        # Create application
-        app = Application.builder().token(token).build()
+    # Start the bot
+    logger.info("Starting bot...")
+    await app.initialize()
+    await app.start()
 
-        # Add handlers
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("text", text_command))
-        app.add_handler(CommandHandler("fancy", fancy_command))
-        app.add_handler(CommandHandler("font", font_command))
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-        app.add_handler(CallbackQueryHandler(button))
-        
-        # Add error handler
-        app.add_error_handler(error_handler)
-
-        # Create web application
+    if IS_RENDER:
+        # Create web application for Render deployment
         web_app = web.Application()
         web_app.bot = app.bot
         web_app.application = app
@@ -276,13 +274,8 @@ async def main():
         web_app.router.add_get('/health', health_check)
         web_app.router.add_post('/webhook', webhook_handler)
 
-        # Start the bot
-        logger.info("Starting bot...")
-        await app.initialize()
-        await app.start()
-
         # Set webhook
-        webhook_url = os.getenv("WEBHOOK_URL", f"https://{os.getenv('RENDER_SERVICE_NAME')}.onrender.com/webhook")
+        webhook_url = f"https://{os.getenv('RENDER_SERVICE_NAME')}.onrender.com/webhook"
         await app.bot.set_webhook(url=webhook_url)
         logger.info(f"Webhook set to: {webhook_url}")
 
@@ -295,16 +288,15 @@ async def main():
 
         # Keep the bot running
         await app.run_polling(drop_pending_updates=True)
-    finally:
-        # Clean up lock file
-        remove_lock_file()
+    else:
+        # Use polling for local development
+        logger.info("Running in polling mode (local development)")
+        await app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
-        remove_lock_file()
     except Exception as e:
-        logger.error(f"Critical error in main: {e}")
-        remove_lock_file() 
+        logger.error(f"Critical error in main: {e}") 
