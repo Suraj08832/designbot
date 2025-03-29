@@ -271,6 +271,7 @@ async def main():
         web_app.application = app
 
         # Add routes
+        web_app.router.add_get('/', health_check)  # Root path for health check
         web_app.router.add_get('/health', health_check)
         web_app.router.add_post('/webhook', webhook_handler)
 

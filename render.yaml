@@ -7,5 +7,10 @@ services:
     envVars:
       - key: BOT_TOKEN
         sync: false
-    healthCheckPath: /health
-    autoDeploy: true 
+    healthCheckPath: /
+    autoDeploy: true
+    plan: free
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1 
