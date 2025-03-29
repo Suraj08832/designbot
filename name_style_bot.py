@@ -215,7 +215,19 @@ class NameStyleBot:
         except Exception as e:
             logger.error(f"Critical error in start_bot: {e}")
             if self.application:
-                await self.application.stop()
+                try:
+                    await self.application.stop()
+                except Exception as stop_error:
+                    logger.error(f"Error stopping application: {stop_error}")
+
+def run_bot():
+    """Run the bot with proper event loop handling."""
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
 
 async def main() -> None:
     """Main function to run the bot."""
@@ -226,9 +238,4 @@ async def main() -> None:
         logger.error(f"Fatal error: {e}")
 
 if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
-    except Exception as e:
-        logger.error(f"Fatal error: {e}") 
+    run_bot() 
