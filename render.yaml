@@ -3,7 +3,7 @@ services:
     name: name-style-bot
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python render_bot.py
+    startCommand: python3 render_bot.py
     envVars:
       - key: BOT_TOKEN
         sync: false
