@@ -7,6 +7,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from dotenv import load_dotenv
 from name_fonts import style_name, NORMAL_FONTS, FANCY_FONTS, STYLE_MAPS
+from aiohttp import web
 
 # Load environment variables
 load_dotenv()
@@ -20,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 # Store user states
 user_states = {}
+
+# Get port from environment variable or use default
+PORT = int(os.getenv("PORT", "8080"))
 
 def is_already_running():
     """Check if another instance of the bot is already running."""
@@ -215,6 +219,21 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Error in button handler: {e}")
         await query.message.reply_text("Sorry, something went wrong. Please try again.")
 
+async def health_check(request):
+    """Handle health check requests."""
+    return web.Response(text="OK")
+
+async def webhook_handler(request):
+    """Handle incoming webhook requests."""
+    try:
+        data = await request.json()
+        update = Update.de_json(data, request.app.bot)
+        await request.app.application.process_update(update)
+        return web.Response()
+    except Exception as e:
+        logger.error(f"Error in webhook handler: {e}")
+        return web.Response(status=500)
+
 async def main():
     """Start the bot."""
     # Check if another instance is running
@@ -248,10 +267,33 @@ async def main():
         # Add error handler
         app.add_error_handler(error_handler)
 
+        # Create web application
+        web_app = web.Application()
+        web_app.bot = app.bot
+        web_app.application = app
+
+        # Add routes
+        web_app.router.add_get('/health', health_check)
+        web_app.router.add_post('/webhook', webhook_handler)
+
         # Start the bot
         logger.info("Starting bot...")
         await app.initialize()
         await app.start()
+
+        # Set webhook
+        webhook_url = os.getenv("WEBHOOK_URL", f"https://{os.getenv('RENDER_SERVICE_NAME')}.onrender.com/webhook")
+        await app.bot.set_webhook(url=webhook_url)
+        logger.info(f"Webhook set to: {webhook_url}")
+
+        # Start web server
+        runner = web.AppRunner(web_app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', PORT)
+        await site.start()
+        logger.info(f"Web server started on port {PORT}")
+
+        # Keep the bot running
         await app.run_polling(drop_pending_updates=True)
     finally:
         # Clean up lock file
