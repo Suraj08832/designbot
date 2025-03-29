@@ -262,17 +262,27 @@ async def main() -> None:
             
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
+        if application:
+            try:
+                await application.stop()
+            except Exception as stop_error:
+                logger.error(f"Error stopping application: {stop_error}")
     finally:
         # Cleanup
-        if application:
-            await application.stop()
         if runner:
-            await runner.cleanup()
+            try:
+                await runner.cleanup()
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up runner: {cleanup_error}")
 
-if __name__ == '__main__':
+def run_bot():
+    """Run the bot with proper event loop handling."""
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     except Exception as e:
-        logger.error(f"Fatal error: {e}") 
+        logger.error(f"Fatal error: {e}")
+
+if __name__ == '__main__':
+    run_bot() 
