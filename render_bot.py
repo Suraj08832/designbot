@@ -221,11 +221,6 @@ async def main():
     # Add error handler
     app.add_error_handler(error_handler)
 
-    # Start the bot
-    logger.info("Starting bot...")
-    await app.initialize()
-    await app.start()
-
     # Create web application
     web_app = web.Application()
     web_app.bot = app.bot
@@ -236,17 +231,22 @@ async def main():
     web_app.router.add_get('/health', health_check)
     web_app.router.add_post('/webhook', webhook_handler)
 
-    # Set webhook
-    webhook_url = f"https://{SERVICE_NAME}.onrender.com/webhook"
-    await app.bot.set_webhook(url=webhook_url)
-    logger.info(f"Webhook set to: {webhook_url}")
-
-    # Start web server
+    # Start web server first
     runner = web.AppRunner(web_app)
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
     logger.info(f"Web server started on port {PORT}")
+
+    # Set webhook
+    webhook_url = f"https://{SERVICE_NAME}.onrender.com/webhook"
+    await app.bot.set_webhook(url=webhook_url)
+    logger.info(f"Webhook set to: {webhook_url}")
+
+    # Start the bot
+    logger.info("Starting bot...")
+    await app.initialize()
+    await app.start()
 
     # Keep the bot running
     while True:

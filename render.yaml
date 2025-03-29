@@ -9,6 +9,8 @@ services:
         sync: false
       - key: RENDER_SERVICE_NAME
         sync: false
+      - key: PORT
+        value: 8080
     healthCheckPath: /
     autoDeploy: true
     plan: free
