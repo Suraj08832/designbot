@@ -1,0 +1,1 @@
+worker: python name_style_bot.py 

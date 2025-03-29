@@ -249,15 +249,14 @@ async def main() -> None:
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", port)
+        await site.start()
         
-        # Start both the web app and bot
-        async with site:
-            logger.info(f"Web app started on port {port}")
-            logger.info("Starting bot...")
-            await application.start()
-            
-            # Run forever
-            await application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+        logger.info(f"Web app started on port {port}")
+        logger.info("Starting bot...")
+        await application.start()
+        
+        # Run forever
+        await application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
             
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
