@@ -1,6 +1,8 @@
 import os
 import logging
 import asyncio
+import sys
+import tempfile
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from dotenv import load_dotenv
@@ -18,6 +20,45 @@ logger = logging.getLogger(__name__)
 
 # Store user states
 user_states = {}
+
+def is_already_running():
+    """Check if another instance of the bot is already running."""
+    lock_file = os.path.join(tempfile.gettempdir(), 'name_style_bot.lock')
+    try:
+        if os.path.exists(lock_file):
+            with open(lock_file, 'r') as f:
+                pid = int(f.read().strip())
+            try:
+                os.kill(pid, 0)  # Check if process exists
+                return True
+            except OSError:
+                # Process doesn't exist, remove stale lock file
+                os.remove(lock_file)
+                return False
+        return False
+    except Exception as e:
+        logger.error(f"Error checking for running instance: {e}")
+        return False
+
+def create_lock_file():
+    """Create a lock file with the current process ID."""
+    lock_file = os.path.join(tempfile.gettempdir(), 'name_style_bot.lock')
+    try:
+        with open(lock_file, 'w') as f:
+            f.write(str(os.getpid()))
+        return True
+    except Exception as e:
+        logger.error(f"Error creating lock file: {e}")
+        return False
+
+def remove_lock_file():
+    """Remove the lock file."""
+    lock_file = os.path.join(tempfile.gettempdir(), 'name_style_bot.lock')
+    try:
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
+    except Exception as e:
+        logger.error(f"Error removing lock file: {e}")
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors."""
@@ -176,36 +217,52 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def main():
     """Start the bot."""
-    # Get bot token from environment variable
-    token = os.getenv("BOT_TOKEN")
-    if not token:
-        logger.error("No bot token found in environment variables!")
-        return
+    # Check if another instance is running
+    if is_already_running():
+        logger.error("Another instance of the bot is already running!")
+        sys.exit(1)
 
-    # Create application
-    app = Application.builder().token(token).build()
+    # Create lock file
+    if not create_lock_file():
+        logger.error("Failed to create lock file!")
+        sys.exit(1)
 
-    # Add handlers
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("text", text_command))
-    app.add_handler(CommandHandler("fancy", fancy_command))
-    app.add_handler(CommandHandler("font", font_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    app.add_handler(CallbackQueryHandler(button))
-    
-    # Add error handler
-    app.add_error_handler(error_handler)
+    try:
+        # Get bot token from environment variable
+        token = os.getenv("BOT_TOKEN")
+        if not token:
+            logger.error("No bot token found in environment variables!")
+            return
 
-    # Start the bot
-    logger.info("Starting bot...")
-    await app.initialize()
-    await app.start()
-    await app.run_polling(drop_pending_updates=True)
+        # Create application
+        app = Application.builder().token(token).build()
+
+        # Add handlers
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("text", text_command))
+        app.add_handler(CommandHandler("fancy", fancy_command))
+        app.add_handler(CommandHandler("font", font_command))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+        app.add_handler(CallbackQueryHandler(button))
+        
+        # Add error handler
+        app.add_error_handler(error_handler)
+
+        # Start the bot
+        logger.info("Starting bot...")
+        await app.initialize()
+        await app.start()
+        await app.run_polling(drop_pending_updates=True)
+    finally:
+        # Clean up lock file
+        remove_lock_file()
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
+        remove_lock_file()
     except Exception as e:
-        logger.error(f"Critical error in main: {e}") 
+        logger.error(f"Critical error in main: {e}")
+        remove_lock_file() 
