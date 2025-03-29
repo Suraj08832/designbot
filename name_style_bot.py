@@ -174,7 +174,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Error in button handler: {e}")
         await query.message.reply_text("Sorry, something went wrong. Please try again.")
 
-def main():
+async def main():
     """Start the bot."""
     # Get bot token from environment variable
     token = os.getenv("BOT_TOKEN")
@@ -198,7 +198,14 @@ def main():
 
     # Start the bot
     logger.info("Starting bot...")
-    app.run_polling(drop_pending_updates=True)
+    await app.initialize()
+    await app.start()
+    await app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
-    main() 
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Critical error in main: {e}") 
