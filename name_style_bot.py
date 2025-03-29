@@ -240,9 +240,6 @@ async def main() -> None:
         # Add error handler
         application.add_error_handler(error_handler)
 
-        # Initialize the application
-        await application.initialize()
-        
         # Create and start web app
         app = await web_app()
         port = int(os.environ.get("PORT", "10000"))
@@ -253,15 +250,18 @@ async def main() -> None:
         
         logger.info(f"Web app started on port {port}")
         logger.info("Starting bot...")
+        
+        # Start the bot
+        await application.initialize()
         await application.start()
         
-        # Run forever
+        # Run the bot until stopped
         await application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
             
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
         if 'application' in locals():
-            await application.shutdown()
+            await application.stop()
     finally:
         if 'runner' in locals():
             await runner.cleanup()
