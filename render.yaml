@@ -7,6 +7,8 @@ services:
     envVars:
       - key: BOT_TOKEN
         sync: false
+      - key: RENDER_SERVICE_NAME
+        sync: false
     healthCheckPath: /
     autoDeploy: true
     plan: free

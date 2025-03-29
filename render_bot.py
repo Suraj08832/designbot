@@ -23,6 +23,12 @@ user_states = {}
 # Get port from environment variable or use default
 PORT = int(os.getenv("PORT", "8080"))
 
+# Get service name from environment
+SERVICE_NAME = os.getenv("RENDER_SERVICE_NAME")
+if not SERVICE_NAME:
+    logger.error("RENDER_SERVICE_NAME not found in environment variables!")
+    exit(1)
+
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors."""
     logger.error(f"Error: {context.error}")
@@ -231,7 +237,7 @@ async def main():
     web_app.router.add_post('/webhook', webhook_handler)
 
     # Set webhook
-    webhook_url = f"https://{os.getenv('RENDER_SERVICE_NAME')}.onrender.com/webhook"
+    webhook_url = f"https://{SERVICE_NAME}.onrender.com/webhook"
     await app.bot.set_webhook(url=webhook_url)
     logger.info(f"Webhook set to: {webhook_url}")
 
