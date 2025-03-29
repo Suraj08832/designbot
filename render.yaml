@@ -17,4 +17,10 @@ services:
     disk:
       name: data
       mountPath: /data
-      sizeGB: 1 
+      sizeGB: 1
+    buildFilter:
+      paths:
+        - render_bot.py
+        - name_fonts.py
+        - requirements.txt
+        - .env 
