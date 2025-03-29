@@ -219,6 +219,8 @@ async def web_app():
 
 async def main() -> None:
     """Start the bot and web server."""
+    application = None
+    runner = None
     try:
         # Get bot token from environment variable
         token = os.getenv("BOT_TOKEN")
@@ -260,10 +262,11 @@ async def main() -> None:
             
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
-        if 'application' in locals():
-            await application.stop()
     finally:
-        if 'runner' in locals():
+        # Cleanup
+        if application:
+            await application.stop()
+        if runner:
             await runner.cleanup()
 
 if __name__ == '__main__':
